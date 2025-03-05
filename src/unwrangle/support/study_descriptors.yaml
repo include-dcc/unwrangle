@@ -1,0 +1,68 @@
+tables:
+  biospecimen:
+    filename: specimen.csv
+    global_ids:
+      - Participant Global ID
+      - Sample Global ID
+  condition:
+    filename: condition.csv
+    global_ids:
+      - Participant Global ID
+  data_file:
+    filename: datafile.csv
+    global_ids:
+      - Participant Global ID
+      - Sample Global ID
+      - File Global ID
+      - Parent Sample Global ID
+      - Collection Global ID
+      - Container Global ID
+  dataset: 
+    filename: dataset_meta.csv
+    global_ids:
+      - Dataset Global ID
+  dataset_manifest:
+    global_ids:
+      - Dataset Global ID
+      - File Global ID
+  participant:
+    filename: participant.csv
+    global_ids:
+      - Participant Global ID
+global_ids:
+  Participant Global ID:
+    variable_name: Participant Global ID
+    descriptors:
+      - Participant External ID
+    resource_type: Patient
+  Sample Global ID:
+    variable_name: Sample Global ID
+    descriptors:
+      - Sample External ID
+    resource_type: Specimen
+  Parent Sample Global ID:
+    variable_name: Parent Sample Global ID
+    descriptors: 
+      - Parent Sample External ID
+    resource_type: Specimen
+  Collection Global ID:
+    variable_name: Collection Global ID
+    descriptors: 
+      - Collection External ID
+    resource_type: Specimen
+  Container Global ID:
+    variable_name: Container Global ID
+    descriptors:
+      - Container External ID
+    resource_type: Specimen
+  File Global ID:
+    variable_name: File Global ID
+    descriptors:
+      - File S3 Location
+    resource_type: DocumentReference
+  Dataset Global ID:
+    variable_name: Dataset Global ID
+    descriptors: 
+      - Dataset External ID
+    resource_type: List
+

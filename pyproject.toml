@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools"] #, "setuptools-scm"]
+build-backend = "setuptools.build_meta"
+
+#[tool.setuptools_scm]
+#version_file = "unwrangle/_version.py"
+
+[project]
+name = "unwrangle"
+authors = [
+    {name = "Eric Torstenson", email="eric.s.torstenson@vumc.org"}
+]
+description = "Various tools used to help automate ID generation for INCLUDE."
+readme = "README.md"
+requires-python = ">3.10"
+keywords = ["Vocabulary", "Research Data", "Borg"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+]
+dependencies = ["PyYAML",
+                "rich",
+                "gql",
+                "ncpi-whistler @ git+https://github.com/NIH-NCPI/ncpi-whistler",
+                ]
+
+dynamic = ["version"]
+
+[tool.setuptools.packages.find]
+where = ["src"]  # list of folders that contain the packages (["."] by default)
+
+[tool.setuptools.package-data]
+yaml_files = ["*.yaml"]
+
+[project.scripts]
+unwrangle = "unwrangle:exec"
