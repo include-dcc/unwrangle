@@ -1,0 +1,39 @@
+mutation globalDescriptorUpsertMutation($input: GlobalDescriptorUpsertInput!) {
+  """
+  This should kick off the upsert mutation. Right now, it works, but the 
+  response is wonky and, because I have no idea what I'm doing it doesn't 
+  return what we want to see. 
+  """
+  globalDescriptorUpsert(input: $input) {
+    errors {
+      ... on MutationError {
+        __typename
+        message
+        field
+      }
+    }
+    job {
+      id
+      completedAt
+      globalDescriptors {
+        totalCount
+        edges {
+          node {
+            descriptor
+            id
+          }
+        }
+      }
+      errors {
+        totalCount
+        edges {
+          node {
+            name
+            message
+            isFatal
+          }
+        }
+      }
+    }
+  }
+}
