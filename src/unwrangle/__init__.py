@@ -1,5 +1,7 @@
 from pathlib import Path
 from argparse import ArgumentParser, FileType
+
+from yaml import safe_load
 import sys
 
 # import wstlr
@@ -9,6 +11,8 @@ from wstlr import get_host_config
 from yaml import safe_load
 
 from unwrangle.tools import load_tools
+
+from os import getenv
 
 import pdb
 
@@ -43,6 +47,19 @@ def exec(args=None):
         help="Dataset YAML file with details required to run conversion.",
     )
 
+    parser.add_argument(
+        "-id",
+        "--study-id", 
+        type=str, 
+        help="Study ID (short name). Not required if config is provided."
+    )
+    parser.add_argument(
+        "-org",
+        "--organization-name", 
+        type=str, 
+        help="Organization the study is a part of (not required if user belongs to only one study)."
+    )
+
     subparsers = parser.add_subparsers(
         title="command", dest="command", required=True, help="Command to be run"
     )
@@ -50,6 +67,12 @@ def exec(args=None):
         tools[toolname].add_arguments(subparsers)
 
     args = parser.parse_args(args)
+    args.dwtoken = getenv("DEWRANGLE_TOKEN")
+
+    if args.config:
+        configurations = {}
+        for cfg in args.config:
+            configurations[cfg.name] = safe_load(cfg.name)
 
     # Now, we run the command the user selected
     tools[args.command].exec(args)
