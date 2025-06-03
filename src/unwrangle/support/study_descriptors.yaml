@@ -17,11 +17,11 @@ tables:
       - Parent Sample Global ID
       - Collection Global ID
       - Container Global ID
-  dataset: 
+  dataset_meta: 
     filename: dataset_meta.csv
     global_ids:
       - Dataset Global ID
-  dataset_manifest:
+  dataset_file_manifest:
     global_ids:
       - Dataset Global ID
       - File Global ID
@@ -65,4 +65,4 @@ global_ids:
     descriptors: 
       - Dataset External ID
     resource_type: List
-
+default_descriptor_delimiter:  "-"
