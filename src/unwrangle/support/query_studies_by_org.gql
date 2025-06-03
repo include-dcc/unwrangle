@@ -1,0 +1,46 @@
+query orgStudies($id: ID!, $first: Int, $after: ID) {
+  node(id: $id) {
+    id
+    ... on Organization {
+      name
+      id
+      studies(first: $first, after: $after) {
+        totalCount
+        pageInfo {
+          hasNextPage
+          endCursor
+        }
+        edges {
+          cursor
+          node {
+            id
+            globalId
+            name
+            studyFhirServers {
+              edges {
+                node {
+                  id
+                  ... on StudyFhirServer {
+                    fhirServer {
+                      id
+                      name
+                      url
+                      type
+                      authType
+                      authConfig {
+                        ... on FhirServerAuthConfigOIDCClientCredential {
+                          issuerBaseUrl
+                          clientId
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

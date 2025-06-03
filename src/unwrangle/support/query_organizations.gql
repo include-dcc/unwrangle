@@ -1,0 +1,44 @@
+query ($first: Int, $after: ID) {
+  viewer {
+    name
+    organizationUsers(first: $first, after: $after) {
+      totalCount
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+      edges {
+        cursor
+        node {
+          organization {
+            studies {
+              totalCount
+            }
+            id
+            name
+            description
+            email
+            website
+            fhirServers {
+              edges {
+                node {
+                  id
+                  name
+                  url
+                  type
+                  authType
+                  authConfig {
+                    ... on FhirServerAuthConfigOIDCClientCredential {
+                      issuerBaseUrl
+                      clientId
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
