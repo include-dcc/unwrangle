@@ -18,15 +18,8 @@ def study_descriptors():
 
     if _study_descriptors is None:
         _study_descriptors = safe_load(
-            open((_support_details / "study_descriptors.yaml").read_text())
+            open(_support_details / "study_descriptors.yaml")
         )
     return _study_descriptors
 
-def descriptor_upsert():
-    global _study_descriptors
 
-    if _study_descriptors is None:
-        _study_descriptors = safe_load(
-            open((_support_details / "descriptor_upsert.yaml").read_text())
-        )
-    return _study_descriptors
