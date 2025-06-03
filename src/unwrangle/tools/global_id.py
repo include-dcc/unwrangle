@@ -91,15 +91,12 @@ class GlobalID:
             descriptor = self.add_variable(
                 descriptor = self.build_descriptor(row),
                 resource_type = self.resource_type,
-                global_id=row.get('globalId')
+                global_id=row.get(self.variable_name)
             )
         except KeyError as e:
             descriptor = None
             print(e)
         return descriptor
-
-
-
 
 def extract_descriptors(ids_of_interest, csvfile):
     """Adds descriptor details to be sent to dewrangle only when the descriptor\
@@ -109,13 +106,16 @@ def extract_descriptors(ids_of_interest, csvfile):
     for row in csvfile:
         for global_id in ids_of_interest:
             global_var = global_id.parse_row(row)
-            if global_var and global_var.descriptor is not None and global_var.global_id is None:
-                descriptors.append(global_var.objectify())
+            if global_var and global_var.descriptor is not None and (global_var.global_id is None or global_var.global_id.strip() == ''):
+                if global_var.descriptor.strip() != "":
+                    descriptors.append(global_var.objectify())
     return descriptors
 
 def collect_ids_for_files(dw, study_id, table, filelist, backupdir):
     # Filename => Number of lines changed
     lines_updated = defaultdict(int)
+
+    #pdb.set_trace()
     if table in study_descriptors()['tables']:
         # Just a quick lookup for the global ID objects
         global_id_list = set(study_descriptors()['tables'][table]['global_ids'])
@@ -142,8 +142,9 @@ def collect_ids_for_files(dw, study_id, table, filelist, backupdir):
             
         # At this point, we have all of the global IDs that have previously been 
         # created. 
-
+        # pdb.set_trace()
         for filename in filelist:
+            print(f"\n\nMinting Global IDs for {study_id}:{filename} ({table})")
             descriptors_for_dewrangle = []
             existing_descriptors = {}
 
@@ -173,13 +174,13 @@ def collect_ids_for_files(dw, study_id, table, filelist, backupdir):
                     #   data structure
                     id_response = dw.update_descriptors(study_details['id'], descriptors_for_dewrangle)
                     ids_returned = 0
-                    for response in id_response:
-                        global_ids[response['fhirResourceType']][response['descriptor']].global_id = response['global_id']
+                    for id, response in id_response.items():
+                        global_ids[response['fhirResourceType']][response['descriptor']] = response['globalId']
                         ids_returned += 1
                 
-                    print(f"{ids_returned} out of {len(descriptors_for_dewrangle)} were returned.")
+                    print(f"- {ids_returned} out of {len(descriptors_for_dewrangle)} were returned.")
                 if len(existing_descriptors) > 0:
-                    print(f"Updating {len(existing_descriptors)} ids from pre-existing IDs")
+                    print(f"- Updating {len(existing_descriptors)} ids from pre-existing IDs")
                 
                 missing_descriptors = 0
                 with backup_filename.open('rt') as infile:
@@ -189,7 +190,7 @@ def collect_ids_for_files(dw, study_id, table, filelist, backupdir):
                     header = csvinput.fieldnames
                     # 
                     #   Update the CSVs with global IDs and continue
-                    print(f"Writing updates to {filename}")
+                    print(f"- Writing updates to {filename}")
                     with Path(filename).open('wt') as outf:
                         csvfile = csv_writer(outf, delimiter=',')
                         dewrangle_new = 0
@@ -284,7 +285,7 @@ def exec(args):
 
     if args.config:
         for config_filename, config in args.config.items():
-            pdb.set_trace()
+            # pdb.set_trace()
             study_id = config['study_id']
             backupdir = Path(args.backup_directory) / f"{study_id}-{datetime.now().strftime('%Y%m%d%H%M%S')}"
             #study_details = dw.study_details(study_id)
