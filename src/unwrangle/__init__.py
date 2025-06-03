@@ -72,7 +72,8 @@ def exec(args=None):
     if args.config:
         configurations = {}
         for cfg in args.config:
-            configurations[cfg.name] = safe_load(cfg.name)
+            configurations[cfg.name] = safe_load(cfg)
+        args.config = configurations
 
     # Now, we run the command the user selected
     tools[args.command].exec(args)
