@@ -1,0 +1,34 @@
+mutation globalDescriptorUpsertMutation($input: GlobalDescriptorUpsertInput!) {
+  globalDescriptorUpsert(input: $input) {
+    errors {
+      ... on MutationError {
+        __typename
+        message
+        field
+      }
+    }
+    job {
+      id
+      completedAt
+      globalDescriptors {
+        totalCount
+        edges {
+          node {
+            descriptor
+            id
+          }
+        }
+      }
+      errors {
+        totalCount
+        edges {
+          node {
+            name
+            message
+            isFatal
+          }
+        }
+      }
+    }
+  }
+}
