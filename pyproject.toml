@@ -23,7 +23,7 @@ dependencies = ["PyYAML",
                 "requests>2.27.0"
                 ]
 
-dynamic = ["version"]
+version = "0.0.1"
 
 [tool.setuptools.packages.find]
 where = ["src"]  # list of folders that contain the packages (["."] by default)
