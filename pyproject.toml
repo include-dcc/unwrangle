@@ -20,7 +20,6 @@ classifiers = [
 dependencies = ["PyYAML",
                 "rich",
                 "gql",
-                "ncpi-whistler @ git+https://github.com/NIH-NCPI/ncpi-whistler",
                 "requests>2.27.0"
                 ]
 
