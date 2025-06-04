@@ -31,6 +31,7 @@ where = ["src"]  # list of folders that contain the packages (["."] by default)
 
 [tool.setuptools.package-data]
 yaml_files = ["*.yaml"]
+gql_files = ["*.gql"]
 
 [project.scripts]
 unwrangle = "unwrangle:exec"
