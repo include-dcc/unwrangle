@@ -20,6 +20,7 @@ classifiers = [
 dependencies = ["PyYAML",
                 "rich",
                 "gql",
+                'aiohttp',
                 "requests>2.27.0"
                 ]
 
