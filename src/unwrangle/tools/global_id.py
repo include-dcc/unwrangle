@@ -101,7 +101,6 @@ class GlobalID:
             error = str(e)
             if error not in self.reported_descriptor_issues:
                 print(e)
-                print(self)
                 self.reported_descriptor_issues.add(error)
         return descriptor
 
@@ -127,106 +126,107 @@ def collect_ids_for_files(dw, org, study_id, table, filelist, backupdir):
     #pdb.set_trace()
     if table in study_descriptors()['tables']:
         # Just a quick lookup for the global ID objects
-        global_id_list = set(study_descriptors()['tables'][table]['global_ids'])
-        ids_of_interest = []
+        if study_descriptors()['tables'][table].get("global_ids") is not None:
+            global_id_list = set(study_descriptors()['tables'][table]['global_ids'])
+            ids_of_interest = []
 
-        # resource_type => { descriptor => global_id }
-        global_ids = defaultdict(dict)
+            # resource_type => { descriptor => global_id }
+            global_ids = defaultdict(dict)
 
-        for global_id, item in study_descriptors()['global_ids'].items():
-            id = GlobalID(variable_name = global_id,
-                        descriptors=item.get('descriptors'),
-                        resource_type=item.get('resource_type'),
-                        descriptor_delimiter=item.get('descriptor_delimiter')
-                        )
-            
-            if global_id in global_id_list:
-                ids_of_interest.append(id)
-        
-            global_ids[id.resource_type][global_id] = id 
-
-        study_details = dw.study_details(study_id, org)
-        for descriptor in dw.list_descriptors(study_details['id']):
-            global_ids[descriptor['fhirResourceType']][descriptor['descriptor']] = descriptor['globalId']
-            
-        # At this point, we have all of the global IDs that have previously been 
-        # created. 
-        # pdb.set_trace()
-        for filename in filelist:
-            print(f"\n\nMinting Global IDs for {study_id}:{filename} ({table})")
-            descriptors_for_dewrangle = []
-            existing_descriptors = {}
-
-            with Path(filename).open('rt') as file:
-                csvfile = DictReader(file, delimiter=',')
-
-                # Extract ID descriptors from dataset file for rows where global IDs 
-                # are missing and we do have the data to generate a descriptor
-                descriptors_of_interest = extract_descriptors(ids_of_interest, csvfile)
-                for descr in descriptors_of_interest:
-                    if descr['descriptor'] in global_ids[descr['fhirResourceType']]:
-                        existing_descriptors[descr['descriptor']] = global_ids[descr['fhirResourceType']][descr['descriptor']]
-                    else:
-                        descriptors_for_dewrangle.append(descr)
-
-            # If there are global IDs to mint:
-            if len(descriptors_for_dewrangle) + len(existing_descriptors) > 0:
-                #   Back up file
-                if backupdir is not None:
-                    Path(backupdir).mkdir(parents=True, exist_ok=True)  # / datetime.now().strftime("%Y%m%d%H%M%S") 
-                    backup_filename = Path(backupdir) / (Path(filename).stem + ".csv")
-                    copy2(filename, backupdir)
-
-                if len(descriptors_for_dewrangle) > 0:
-                    # 
-                    #   Mint Global IDs and merge the new global IDs into our global_ids
-                    #   data structure
-                    id_response = dw.update_descriptors(study_details['id'], descriptors_for_dewrangle)
-                    ids_returned = 0
-                    for id, response in id_response.items():
-                        global_ids[response['fhirResourceType']][response['descriptor']] = response['globalId']
-                        ids_returned += 1
+            for global_id, item in study_descriptors()['global_ids'].items():
+                id = GlobalID(variable_name = global_id,
+                            descriptors=item.get('descriptors'),
+                            resource_type=item.get('resource_type'),
+                            descriptor_delimiter=item.get('descriptor_delimiter')
+                            )
                 
-                    print(f"- {ids_returned} out of {len(descriptors_for_dewrangle)} were returned.")
-                if len(existing_descriptors) > 0:
-                    print(f"- Updating {len(existing_descriptors)} ids from pre-existing IDs")
-                
-                missing_descriptors = 0
-                with backup_filename.open('rt') as infile:
-                    print(f"* Backup filename: {backup_filename}")
-                    #pdb.set_trace()
-                    csvinput = DictReader(infile, delimiter=',')
-                    header = csvinput.fieldnames
-                    # 
-                    #   Update the CSVs with global IDs and continue
-                    print(f"- Writing updates to {filename}")
-                    with Path(filename).open('wt') as outf:
-                        csvfile = csv_writer(outf, delimiter=',')
-                        dewrangle_new = 0
-                        dewrangle_preexisting = 0
+                if global_id in global_id_list:
+                    ids_of_interest.append(id)
+            
+                global_ids[id.resource_type][global_id] = id 
 
-                        csvfile.writerow(header)
-                        for row in csvinput:
-                            # pdb.set_trace()
-                            for id in ids_of_interest:
-                                if row.get(id.variable_name) is None or row.get(id.variable_name) == '':
-                                    try:
-                                        local_descriptor = id.build_descriptor(row)
-                                        # pdb.set_trace()
-                                        if local_descriptor in existing_descriptors:
-                                            row[id.variable_name] = existing_descriptors[local_descriptor]
-                                            dewrangle_preexisting += 1
-                                        else:
+            study_details = dw.study_details(study_id, org)
+            for descriptor in dw.list_descriptors(study_details['id']):
+                global_ids[descriptor['fhirResourceType']][descriptor['descriptor']] = descriptor['globalId']
+                
+            # At this point, we have all of the global IDs that have previously been 
+            # created. 
+            # pdb.set_trace()
+            for filename in filelist:
+                print(f"\n\nMinting Global IDs for {study_id}:{filename} ({table})")
+                descriptors_for_dewrangle = []
+                existing_descriptors = {}
+
+                with Path(filename).open('rt') as file:
+                    csvfile = DictReader(file, delimiter=',')
+
+                    # Extract ID descriptors from dataset file for rows where global IDs 
+                    # are missing and we do have the data to generate a descriptor
+                    descriptors_of_interest = extract_descriptors(ids_of_interest, csvfile)
+                    for descr in descriptors_of_interest:
+                        if descr['descriptor'] in global_ids[descr['fhirResourceType']]:
+                            existing_descriptors[descr['descriptor']] = global_ids[descr['fhirResourceType']][descr['descriptor']]
+                        else:
+                            descriptors_for_dewrangle.append(descr)
+
+                # If there are global IDs to mint:
+                if len(descriptors_for_dewrangle) + len(existing_descriptors) > 0:
+                    #   Back up file
+                    if backupdir is not None:
+                        Path(backupdir).mkdir(parents=True, exist_ok=True)  # / datetime.now().strftime("%Y%m%d%H%M%S") 
+                        backup_filename = Path(backupdir) / (Path(filename).stem + ".csv")
+                        copy2(filename, backupdir)
+
+                    if len(descriptors_for_dewrangle) > 0:
+                        # 
+                        #   Mint Global IDs and merge the new global IDs into our global_ids
+                        #   data structure
+                        id_response = dw.update_descriptors(study_details['id'], descriptors_for_dewrangle)
+                        ids_returned = 0
+                        for id, response in id_response.items():
+                            global_ids[response['fhirResourceType']][response['descriptor']] = response['globalId']
+                            ids_returned += 1
+                    
+                        print(f"- {ids_returned} out of {len(descriptors_for_dewrangle)} were returned.")
+                    if len(existing_descriptors) > 0:
+                        print(f"- Updating {len(existing_descriptors)} ids from pre-existing IDs")
+                    
+                    missing_descriptors = 0
+                    with backup_filename.open('rt') as infile:
+                        print(f"* Backup filename: {backup_filename}")
+                        #pdb.set_trace()
+                        csvinput = DictReader(infile, delimiter=',')
+                        header = csvinput.fieldnames
+                        # 
+                        #   Update the CSVs with global IDs and continue
+                        print(f"- Writing updates to {filename}")
+                        with Path(filename).open('wt') as outf:
+                            csvfile = csv_writer(outf, delimiter=',')
+                            dewrangle_new = 0
+                            dewrangle_preexisting = 0
+
+                            csvfile.writerow(header)
+                            for row in csvinput:
+                                # pdb.set_trace()
+                                for id in ids_of_interest:
+                                    if row.get(id.variable_name) is None or row.get(id.variable_name) == '':
+                                        try:
+                                            local_descriptor = id.build_descriptor(row)
                                             # pdb.set_trace()
-                                            row[id.variable_name] = global_ids[id.resource_type][local_descriptor]
-                                            dewrangle_new += 1
-                                    except KeyError as e:
-                                        missing_descriptors += 1
-                            csvfile.writerow([row[x] for x in header])
-                            lines_updated[Path(filename).stem] += 1
-                    print(f"* File updated with {dewrangle_new} global IDs from dewrangle and {dewrangle_preexisting} previously generated")
-                    if missing_descriptors > 0:
-                        print(f"* {missing_descriptors} IDs could not be generated due to the absence of one or more descriptor columns")
+                                            if local_descriptor in existing_descriptors:
+                                                row[id.variable_name] = existing_descriptors[local_descriptor]
+                                                dewrangle_preexisting += 1
+                                            else:
+                                                # pdb.set_trace()
+                                                row[id.variable_name] = global_ids[id.resource_type][local_descriptor]
+                                                dewrangle_new += 1
+                                        except KeyError as e:
+                                            missing_descriptors += 1
+                                csvfile.writerow([row[x] for x in header])
+                                lines_updated[Path(filename).stem] += 1
+                        print(f"* File updated with {dewrangle_new} global IDs from dewrangle and {dewrangle_preexisting} previously generated")
+                        if missing_descriptors > 0:
+                            print(f"* {missing_descriptors} IDs could not be generated due to the absence of one or more descriptor columns")
     else:
         sys.stderr.write(f"No global ID information in the study_descriptor configuration for table, {table}.\n")
         sys.stderr.write(f"Available table names: \n\t* {'\n\t* '.join(study_descriptors()['tables'].keys())}")
