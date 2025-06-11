@@ -1,5 +1,5 @@
 tables:
-  biospecimen:
+  specimen:
     filename: specimen.csv
     global_ids:
       - Participant Global ID
@@ -8,9 +8,13 @@ tables:
     filename: condition.csv
     global_ids:
       - Participant Global ID
+  encounter:
+    filename: encounter.csv
+  family:
+    filename: family.csv
   study_contacts:
     filename: contacts.csv
-  data_file:
+  file_manifest:
     filename: datafile.csv
     global_ids:
       - Participant Global ID
