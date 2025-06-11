@@ -8,6 +8,8 @@ tables:
     filename: condition.csv
     global_ids:
       - Participant Global ID
+  study_contacts:
+    filename: contacts.csv
   data_file:
     filename: datafile.csv
     global_ids:
@@ -29,6 +31,8 @@ tables:
     filename: participant.csv
     global_ids:
       - Participant Global ID
+  study_meta:
+    filename: study.csv 
 global_ids:
   Participant Global ID:
     variable_name: Participant Global ID
