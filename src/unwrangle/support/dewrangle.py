@@ -13,7 +13,7 @@ import pdb
 
 from rich import print
 
-JOB_POLLING_COUNT = 7
+JOB_POLLING_COUNT = 20
 class Dewrangler:
     def __init__(self, token, dwrest="https://dewrangle.com/api/rest", gqurl="https://dewrangle.com/api/graphql" ):
         self._client = None
@@ -230,7 +230,7 @@ class Dewrangler:
                         local_ids[item['descriptor']] = item 
 
                     if len(descriptors) != len(local_ids):
-                        delay = (JOB_POLLING_COUNT-tries) * (JOB_POLLING_COUNT-tries)
+                        delay = (JOB_POLLING_COUNT-tries) ** (JOB_POLLING_COUNT-tries)
                         print(f"- Polling for updates returned {len(ids)} out of {len(descriptors)}. Waiting {delay}s before trying again. ")     
 
                         time.sleep(delay)               
