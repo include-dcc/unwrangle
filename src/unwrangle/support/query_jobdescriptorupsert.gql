@@ -1,0 +1,28 @@
+query jobdesc($id: ID!) {
+  node(id: $id) {
+    ... on JobGlobalDescriptorUpsert {
+      completedAt
+      globalDescriptors {
+        edges {
+          node {
+            descriptor
+            id
+          }
+        }
+      }
+      errorAggregation {
+        fatalErrorCount
+        totalErrorCount
+      }
+      errors {
+        edges {
+          node {
+            id
+            message
+            name
+          }
+        }
+      }
+    }
+  }
+}
