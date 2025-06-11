@@ -57,6 +57,7 @@ class GlobalID:
 
         # descriptor => GlobalVariable
         self.variables = {}
+        self.reported_descriptor_issues = set()
 
     def global_id(self, row):
         return self.variables[self.build_descriptor(row)].global_id
@@ -97,7 +98,11 @@ class GlobalID:
             )
         except KeyError as e:
             descriptor = None
-            print(e)
+            error = str(e)
+            if error not in self.reported_descriptor_issues:
+                print(e)
+                print(self)
+                self.reported_descriptor_issues.add(error)
         return descriptor
 
 def extract_descriptors(ids_of_interest, csvfile):
@@ -105,11 +110,13 @@ def extract_descriptors(ids_of_interest, csvfile):
        is valid and the global ID doesn't already exist. 
     """
     descriptors = []
+    descriptors_observed = set()
     for row in csvfile:
         for global_id in ids_of_interest:
             global_var = global_id.parse_row(row)
             if global_var and global_var.descriptor is not None and (global_var.global_id is None or global_var.global_id.strip() in ['', 'TBD']):
-                if global_var.descriptor.strip() != "":
+                if global_var.descriptor.strip() != "" and global_var.descriptor not in descriptors_observed:
+                    descriptors_observed.add(global_var.descriptor)
                     descriptors.append(global_var.objectify())
     return descriptors
 
