@@ -111,7 +111,7 @@ def extract_descriptors(ids_of_interest, csvfile):
                     descriptors.append(global_var.objectify())
     return descriptors
 
-def collect_ids_for_files(dw, study_id, table, filelist, backupdir):
+def collect_ids_for_files(dw, org, study_id, table, filelist, backupdir):
     # Filename => Number of lines changed
     lines_updated = defaultdict(int)
 
@@ -136,7 +136,7 @@ def collect_ids_for_files(dw, study_id, table, filelist, backupdir):
         
             global_ids[id.resource_type][global_id] = id 
 
-        study_details = dw.study_details(study_id)
+        study_details = dw.study_details(study_id, org)
         for descriptor in dw.list_descriptors(study_details['id']):
             global_ids[descriptor['fhirResourceType']][descriptor['descriptor']] = descriptor['globalId']
             
@@ -292,7 +292,7 @@ def exec(args):
             for table, ddset in config['dataset'].items():
                 # pdb.set_trace()
                 if args.table is None or table == args.table:
-                    updates_made = collect_ids_for_files(dw, study_id, table, ddset['filename'].split(","), backupdir)
+                    updates_made = collect_ids_for_files(dw, args.organization_name, study_id, table, ddset['filename'].split(","), backupdir)
                     for update in updates_made:
                         print(f"{table}\t{update}\t{updates_made[update]} lines updated")
     else:
