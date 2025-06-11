@@ -21,7 +21,7 @@ tables:
     filename: dataset_meta.csv
     global_ids:
       - Dataset Global ID
-  dataset_file_manifest:
+  dataset_manifest:
     global_ids:
       - Dataset Global ID
       - File Global ID
