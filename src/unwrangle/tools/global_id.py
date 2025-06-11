@@ -294,6 +294,9 @@ def exec(args):
 
     if args.config:
         for config_filename, config in args.config.items():
+            if args.organization_name is None and config['organization'] is not None:
+                args.organization_name = config['organization']
+                print(f"[green]Pulling Organization from config: {args.organization_name}[/green]")
             # pdb.set_trace()
             study_id = config['study_id']
             backupdir = Path(args.backup_directory) / f"{study_id}-{datetime.now().strftime('%Y%m%d%H%M%S')}"
