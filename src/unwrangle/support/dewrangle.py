@@ -8,6 +8,7 @@ from gql.transport.aiohttp import AIOHTTPTransport
 from gql import Client, gql
 import requests
 from . import _support_details
+import json
 
 import pdb
 
@@ -29,6 +30,7 @@ class Dewrangler:
         self._study_by_org_query = None
         self._organization_query = None 
         self._descriptor_upsert = None
+        self._query_jobdescriptorupsert = None 
 
         self.organizations = None
 
@@ -58,6 +60,11 @@ class Dewrangler:
             self._descriptor_upsert = gql((_support_details / "descriptor_upsert_mutation.gql").read_text())
         return self._descriptor_upsert
 
+    @property 
+    def query_jobdescriptorupsert(self):
+        if self._query_jobdescriptorupsert is None:
+            self._query_jobdescriptorupsert = gql((_support_details/"query_jobdescriptorupsert.gql").read_text())
+        return self._query_jobdescriptorupsert
     
     def client(self):
         if self._client is None:
@@ -183,6 +190,8 @@ class Dewrangler:
         ids = {}
 
         if len(descriptors) > 0:
+            with open("output/job_descriptors.json", 'wt', encoding='utf-8') as f:
+                json.dump(descriptors, f, ensure_ascii=False, indent=2)
 
             headers = {
                 "x-api-key": self.token,
@@ -213,45 +222,58 @@ class Dewrangler:
                 job_output = response["globalDescriptorUpsert"]["job"]
                 job_id = job_output['id']
 
+            # With the job ID, we will now query JobGlobalDescriptorUpsert to determine:
+            # 1) is the job done?
+            # 2) Where there any errors?
 
-                # We will try this over again a few times if it returns nothing
-                tries = JOB_POLLING_COUNT
-                while tries > 0:
-                    tries -= 1
-                    resp = requests.get(f"https://dewrangle.com/api/rest/studies/{study_id}/global-descriptors?job={job_id}", headers=headers, timeout=None)
 
-                    local_ids = {}
-                    if not resp:
-                        print(resp)
-                        print(resp.json())
-                        print("There was a problem with the REST query for results:")
-                        pdb.set_trace()
-                    for item in resp.json():
-                        local_ids[item['descriptor']] = item 
+            # We'll try this for a while before giving up
+            tries = JOB_POLLING_COUNT
+            total_time_slept = 0
+            while tries > 0:
+                tries -= 1
+                response = self.client().execute(self.query_jobdescriptorupsert, variable_values={"id": job_id})
 
-                    if len(descriptors) != len(local_ids):
-                        delay = (JOB_POLLING_COUNT-tries) ** (JOB_POLLING_COUNT-tries)
-                        print(f"- Polling for updates returned {len(ids)} out of {len(descriptors)}. Waiting {delay}s before trying again. ")     
+                if response['node']['completedAt'] is None:
+                    delay = (JOB_POLLING_COUNT-tries) * (JOB_POLLING_COUNT-tries)
+                    print(f"- Job: {study_id}:{job_id} not completed. Waiting {delay}s before trying again. {total_time_slept}s previously waited. ")     
 
-                        time.sleep(delay)               
-                    else:
-                        ids = local_ids 
-                        tries = 0
+                    total_time_slept += delay
+                    time.sleep(delay)               
+                    
+                else:
+                    tries = 0
 
-                if len(descriptors) != len(local_ids):
-                    print(descriptors)
-                    print("----")
-                    print(response)
-                    print("----")
-                    sys.stderr.write(f"No job was returned for descriptor upsert\n")
-                    pdb.set_trace()
-            else:
+                    response_content = response['node']
+                    if response_content['errorAggregation'] is not None and response_content['errorAggregation']['totalErrorCount'] > 0:
+                        print(f"{response_content['errorAggregation']['totalErrorCount']} error(s) found: ")
+                        for node in response_content['errors']['edges']:
+                            print(f"- [bold]{node['node']['name']}[/bold] - [red]{node['node']['message']}[/red]")
+                        
+                        sys.exit(1)
+                    print(f"Job {job_id} completed. ")
+
+            resp = requests.get(f"https://dewrangle.com/api/rest/studies/{study_id}/global-descriptors?job={job_id}", headers=headers, timeout=None)
+
+            local_ids = {}
+            if not resp:
+                print(resp)
+                print(resp.json())
+                print("There was a problem with the REST query for results:")
+                pdb.set_trace()
+            for item in resp.json():
+                local_ids[item['descriptor']] = item 
+
+
+            if len(descriptors) != len(local_ids):
                 print(descriptors)
                 print("----")
                 print(response)
                 print("----")
-                sys.stderr.write(f"No job was returned for descriptor upsert\n")
+                sys.stderr.write(f"- Weird. Job {study_id}:{job_id} returned {len(ids)} out of {len(descriptors)}.") 
                 pdb.set_trace()
+            ids = local_ids 
+
         else:
             print(f"Refusing to mutate a zero length descriptor list. ")
 
