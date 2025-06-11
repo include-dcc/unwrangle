@@ -68,7 +68,9 @@ class GlobalID:
             raise KeyError(f"Unable to build a key for '{self.variable_name}' when one or more members is none: {desc_components} from {self.descriptors}")
         return self.descriptor_delimiter.join(desc_components)
     
-    def add_variable(self, descriptor, resource_type, global_id):
+    def add_variable(self, descriptor, resource_type, global_id=None):
+        if global_id == "TBD":
+            global_id=None
         if descriptor not in self.variables:
             self.variables[descriptor] = GlobalVariable(
                 descriptor=descriptor, 
@@ -78,7 +80,7 @@ class GlobalID:
                 global_id = global_id 
             )
         else:
-            if global_id is not None:
+            if global_id is not None and global_id:
                 if self.variables[descriptor].global_id is not None:
                     assert self.variables[descriptor].global_id == global_id, f"Trying to replace global ID, {self.variables[descriptor].global_id}, with {global_id} for descriptor, {descriptor}. Cowardly refusing such a thing!"
                 self.variables[descriptor].global_id = global_id 
@@ -106,7 +108,7 @@ def extract_descriptors(ids_of_interest, csvfile):
     for row in csvfile:
         for global_id in ids_of_interest:
             global_var = global_id.parse_row(row)
-            if global_var and global_var.descriptor is not None and (global_var.global_id is None or global_var.global_id.strip() == ''):
+            if global_var and global_var.descriptor is not None and (global_var.global_id is None or global_var.global_id.strip() in ['', 'TBD']):
                 if global_var.descriptor.strip() != "":
                     descriptors.append(global_var.objectify())
     return descriptors
