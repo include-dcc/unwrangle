@@ -209,7 +209,7 @@ def collect_ids_for_files(dw, org, study_id, table, filelist, backupdir):
                             for row in csvinput:
                                 # pdb.set_trace()
                                 for id in ids_of_interest:
-                                    if row.get(id.variable_name) is None or row.get(id.variable_name) == '':
+                                    if row.get(id.variable_name) is None or row.get(id.variable_name) in ['', 'TBD']:
                                         try:
                                             local_descriptor = id.build_descriptor(row)
                                             # pdb.set_trace()
@@ -302,11 +302,12 @@ def exec(args):
             backupdir = Path(args.backup_directory) / f"{study_id}-{datetime.now().strftime('%Y%m%d%H%M%S')}"
             #study_details = dw.study_details(study_id)
             for table, ddset in config['dataset'].items():
-                # pdb.set_trace()
                 if args.table is None or table == args.table:
-                    updates_made = collect_ids_for_files(dw, args.organization_name, study_id, table, ddset['filename'].split(","), backupdir)
-                    for update in updates_made:
-                        print(f"{table}\t{update}\t{updates_made[update]} lines updated")
+                    # pdb.set_trace()
+                    if args.table is None or table == args.table:
+                        updates_made = collect_ids_for_files(dw, args.organization_name, study_id, table, ddset['filename'].split(","), backupdir)
+                        for update in updates_made:
+                            print(f"{table}\t{update}\t{updates_made[update]} lines updated")
     else:
         study_id = args.study_id
         if study_id is None:
