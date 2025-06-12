@@ -27,7 +27,27 @@ from rich import print
 
 import pdb
 
+class MissingDescriptor(Exception):
+    def __init__(self, table, descriptors, global_var):
+        self.table = table 
+        self.descriptors = ", ".join(descriptors)
+        self.global_var = global_var 
 
+    def message(self):
+        return f"Incomplete descriptor information for '{self.global_var} from table, '{self.table}. Columns in question: {self.descriptors}"
+
+    def __str__(self):
+        return self.message()
+
+    def __str__(self):
+        return self.message()
+class MissingDestinationColumn(Exception):
+    def __init__(self, table, global_var):
+        self.table = table 
+        self.global_var = global_var 
+    
+    def message(self):
+        return f"Unable to write global ID to column, [blue]'{self.table}:{self.global_var}'[/blue], because that column doesn't exit."
 class GlobalVariable:
     def __init__(self, descriptor, resource_type, source_varnames, dest_varname, global_id=None):
         self.descriptor = descriptor
@@ -37,7 +57,7 @@ class GlobalVariable:
         self.global_id = global_id
 
     def objectify(self):
-        return {"descriptor": self.descriptor, "fhirResourceType": self.resource_type}
+        return {"descriptor": self.descriptor, "fhirResourceType": self.resource_type, "dest_varname": self.dest_varname}
 
 
 
@@ -57,7 +77,7 @@ class GlobalID:
 
         # descriptor => GlobalVariable
         self.variables = {}
-        self.reported_descriptor_issues = set()
+        self.reported_descriptor_issues = defaultdict(set)
 
     def global_id(self, row):
         return self.variables[self.build_descriptor(row)].global_id
@@ -66,7 +86,7 @@ class GlobalID:
         desc_components = [row.get(x) for x in self.descriptors]
 
         if None in desc_components:
-            raise KeyError(f"Unable to build a key for '{self.variable_name}' when one or more members is none: {desc_components} from {self.descriptors}")
+            raise MissingDescriptor(self.resource_type, self.descriptors, self.variable_name)
         return self.descriptor_delimiter.join(desc_components)
     
     def add_variable(self, descriptor, resource_type, global_id=None):
@@ -96,12 +116,13 @@ class GlobalID:
                 resource_type = self.resource_type,
                 global_id=row.get(self.variable_name)
             )
-        except KeyError as e:
+        except MissingDescriptor as e:
             descriptor = None
             error = str(e)
-            if error not in self.reported_descriptor_issues:
+
+            if error not in self.reported_descriptor_issues[e.table]:
                 print(e)
-                self.reported_descriptor_issues.add(error)
+                self.reported_descriptor_issues[e.table].add(error)
         return descriptor
 
 def extract_descriptors(ids_of_interest, csvfile):
@@ -113,10 +134,18 @@ def extract_descriptors(ids_of_interest, csvfile):
     for row in csvfile:
         for global_id in ids_of_interest:
             global_var = global_id.parse_row(row)
-            if global_var and global_var.descriptor is not None and (global_var.global_id is None or global_var.global_id.strip() in ['', 'TBD']):
-                if global_var.descriptor.strip() != "" and global_var.descriptor not in descriptors_observed:
-                    descriptors_observed.add(global_var.descriptor)
-                    descriptors.append(global_var.objectify())
+            if global_var:
+                if global_var.dest_varname in row:
+                    if global_var.descriptor is not None and (global_var.global_id is None or global_var.global_id.strip() in ['', 'TBD']):
+                        if global_var.descriptor.strip() != "" and global_var.descriptor not in descriptors_observed:
+                            descriptors_observed.add(global_var.descriptor)
+                            descriptors.append(global_var.objectify())
+                else:
+                    e = MissingDestinationColumn(table=global_var.resource_type, global_var=global_var.dest_varname)
+                    error = str(e)
+                    if error not in global_var.reported_descriptor_issues[e.table]:
+                        print(error)
+                        global_var.reported_descriptor_issues[e.table].add(error)
     return descriptors
 
 def collect_ids_for_files(dw, org, study_id, table, filelist, backupdir):
@@ -220,7 +249,7 @@ def collect_ids_for_files(dw, org, study_id, table, filelist, backupdir):
                                                 # pdb.set_trace()
                                                 row[id.variable_name] = global_ids[id.resource_type][local_descriptor]
                                                 dewrangle_new += 1
-                                        except KeyError as e:
+                                        except MissingDescriptor as e:
                                             missing_descriptors += 1
                                 csvfile.writerow([row[x] for x in header])
                                 lines_updated[Path(filename).stem] += 1
