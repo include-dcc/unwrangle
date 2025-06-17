@@ -247,8 +247,12 @@ def collect_ids_for_files(dw, org, study_id, table, filelist, backupdir):
                                                 dewrangle_preexisting += 1
                                             else:
                                                 # pdb.set_trace()
-                                                row[id.variable_name] = global_ids[id.resource_type][local_descriptor]
-                                                dewrangle_new += 1
+                                                if local_descriptor not in ['', 'TBD']:
+                                                    row[id.variable_name] = global_ids[id.resource_type][local_descriptor]
+                                                    dewrangle_new += 1
+                                                else:
+                                                    print(row)
+                                                    print(f"The descriptor for {id.variable_name} resulted in an invalid descriptor")
                                         except MissingDescriptor as e:
                                             missing_descriptors += 1
                                 csvfile.writerow([row[x] for x in header])
