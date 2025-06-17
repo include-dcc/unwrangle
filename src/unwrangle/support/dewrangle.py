@@ -71,7 +71,7 @@ class Dewrangler:
             headers = {
                 "x-api-key": self.token
             }
-            transport = AIOHTTPTransport(url=self.gqurl, headers=headers)
+            transport = AIOHTTPTransport(url=self.gqurl, headers=headers, ssl=True)
 
             self._client =  Client(
                 transport=transport,
