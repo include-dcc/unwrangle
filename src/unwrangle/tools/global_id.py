@@ -343,7 +343,7 @@ def exec(args):
             sys.stderr.write(f"Runs without a config must contain the Study ID associated with the global IDs to be generated")
             sys.exit(1)
         backupdir = Path(args.backup_directory) / f"{study_id}-{datetime.now().strftime('%Y%m%d%H%M%S')}"
-        updates_made = collect_ids_for_files(dw, study_id, args.table, args.file, backupdir)
+        updates_made = collect_ids_for_files(dw, args.organization_name, study_id, args.table, args.file, backupdir=backupdir)
         for update in updates_made:
             print(f"{args.table}\t{update}\t{updates_made[update]} lines updated")
 
