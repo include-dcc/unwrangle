@@ -4,6 +4,9 @@ tables:
     global_ids:
       - Participant Global ID
       - Sample Global ID
+      - Collection Global ID
+      - Parent Sample Global ID
+      - Container Global ID
   condition:
     filename: condition.csv
     global_ids:
@@ -20,9 +23,6 @@ tables:
       - Participant Global ID
       - Sample Global ID
       - File Global ID
-      - Parent Sample Global ID
-      - Collection Global ID
-      - Container Global ID
   dataset_meta: 
     filename: dataset_meta.csv
     global_ids:
