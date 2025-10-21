@@ -12,7 +12,7 @@ mutation globalDescriptorUpsert(
         job {
           id
           completedAt
-          globalDescriptors {
+          descriptors {
             totalCount
             edges {
               node {

@@ -10,7 +10,7 @@ mutation globalDescriptorUpsertMutation($input: GlobalDescriptorUpsertInput!) {
     job {
       id
       completedAt
-      globalDescriptors {
+      descriptors {
         totalCount
         edges {
           node {
