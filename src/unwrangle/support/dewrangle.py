@@ -9,6 +9,7 @@ from gql import Client, gql
 import requests
 from . import _support_details
 import json
+from pathlib import Path
 
 import pdb
 
@@ -190,6 +191,7 @@ class Dewrangler:
         ids = {}
 
         if len(descriptors) > 0:
+            Path("output").mkdir(exist_ok=True)
             with open("output/job_descriptors.json", 'wt', encoding='utf-8') as f:
                 json.dump(descriptors, f, ensure_ascii=False, indent=2)
 
@@ -210,7 +212,6 @@ class Dewrangler:
 
             variables = {"input": {"studyId": study_id, 
                         "studyFileIds": [{ "id": fileid}], "skipUnavailableDescriptors": True}}
-            
             response = self.client().execute(self.descriptor_upsert, variable_values=variables)
 
             if response["globalDescriptorUpsert"].get("errors") is not None:
