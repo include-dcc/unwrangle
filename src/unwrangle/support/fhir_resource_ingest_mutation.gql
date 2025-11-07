@@ -1,0 +1,17 @@
+mutation fhirResourceIngestMutation($input: FhirResourceIngestInput!) {
+  fhirResourceIngest (input: $input) {
+    errors {
+      ...on MutationError {
+          __typename
+          message
+          field
+      }
+    }
+    job {
+      id
+      createdAt
+      completedAt
+      operation
+    }
+  }
+}
