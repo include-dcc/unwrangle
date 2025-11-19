@@ -2,7 +2,7 @@ query jobdesc($id: ID!) {
   node(id: $id) {
     ... on JobGlobalDescriptorUpsert {
       completedAt
-      globalDescriptors {
+      descriptors {
         edges {
           node {
             descriptor

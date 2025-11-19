@@ -4,9 +4,13 @@ from argparse import ArgumentParser, FileType
 from yaml import safe_load
 import sys
 
-# import wstlr
-import wstlr.config  # import Configuration
-from wstlr import get_host_config
+
+import logging 
+
+if sys.stderr.isatty():
+    from rich.console import Console 
+    from rich.logging import RichHandler 
+    from rich.traceback import install
 
 from yaml import safe_load
 
@@ -18,6 +22,25 @@ import pdb
 
 tools = load_tools()
 
+def init_logging(loglevel):
+    # When we are in the terminal, let's use the rich logging
+    DATEFMT = "%Y-%m-%dT%H:%M:%SZ"
+    if sys.stderr.isatty():
+        install(show_locals=True)
+        
+        handler = RichHandler(level=loglevel, 
+                console=Console(stderr=True),
+                show_time=False,
+                show_level=True,
+                rich_tracebacks=True)
+        FORMAT = "%(message)s"
+    else:
+        FORMAT = "%(asctime)s\t%(levelname)s\t%(message)s"
+        handler = logging.StreamHandler()
+
+    logging.basicConfig(
+        level=loglevel, format=FORMAT, datefmt=DATEFMT, handlers=[handler]
+    )
 
 def exec(args=None):
     # host_config = get_host_config()
@@ -27,6 +50,7 @@ def exec(args=None):
         prog="unwrangle",
         description="""ID Generation assistance for global IDs, DRS IDs, etc""",
     )
+
     """
     parser.add_argument(
         "--host",
@@ -59,6 +83,13 @@ def exec(args=None):
         type=str, 
         help="Organization the study is a part of (not required if user belongs to only one study)."
     )
+    parser.add_argument(
+        "-log",
+        "--log-level", 
+        choices=["NOTSET", "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+        default="INFO",
+        help="Logging level tolerated (default is INFO)"
+    )
 
     subparsers = parser.add_subparsers(
         title="command", dest="command", required=True, help="Command to be run"
@@ -67,6 +98,9 @@ def exec(args=None):
         tools[toolname].add_arguments(subparsers)
 
     args = parser.parse_args(args)
+    init_logging(args.log_level)
+    logger = logging.getLogger(__name__)
+    
     args.dwtoken = getenv("DEWRANGLE_TOKEN")
 
     if args.config:

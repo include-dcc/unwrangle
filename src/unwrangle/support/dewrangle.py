@@ -1,6 +1,6 @@
 # Support for dewrangle queries
 
-
+from string import Template
 from graphql import print_ast
 import sys
 import time 
@@ -15,7 +15,15 @@ import pdb
 
 from rich import print
 
+import logging 
+logger = logging.getLogger("unwrangle")
+
 JOB_POLLING_COUNT = 20
+
+class GraphQlTemplate(Template):
+    """Less messy than escaping the GQL '$' that need to remain"""
+    delimiter = "#"
+
 class Dewrangler:
     def __init__(self, token, dwrest="https://dewrangle.com/api/rest", gqurl="https://dewrangle.com/api/graphql" ):
         self._client = None
@@ -32,6 +40,8 @@ class Dewrangler:
         self._organization_query = None 
         self._descriptor_upsert = None
         self._query_jobdescriptorupsert = None 
+        self._query_jobstatus_fhiringest = None 
+        self._fhir_ingest_mutation = None
 
         self.organizations = None
 
@@ -67,6 +77,18 @@ class Dewrangler:
             self._query_jobdescriptorupsert = gql((_support_details/"query_jobdescriptorupsert.gql").read_text())
         return self._query_jobdescriptorupsert
     
+    @property 
+    def query_jobstatus_fhiringest(self):
+        if self._query_jobstatus_fhiringest is None:
+            self._query_jobstatus_fhiringest = gql((_support_details/"query_jobstatus_fhiringest.gql").read_text())
+        return self._query_jobstatus_fhiringest
+
+    @property 
+    def fhir_ingest_mutation(self):
+        if self._fhir_ingest_mutation is None:
+            self._fhir_ingest_mutation = gql((_support_details/"fhir_resource_ingest_mutation.gql").read_text())
+        return self._fhir_ingest_mutation
+
     def client(self):
         if self._client is None:
             headers = {
@@ -178,6 +200,141 @@ class Dewrangler:
         rest_url = f"{self.dwrest}/studies/{study_id}/global-descriptors?descriptors=all"
         response = requests.get(rest_url, headers=headers, timeout=None)
         return response.json()
+
+    def rest_post(self, url, content, headers=None):
+        if headers is None:
+             headers = {
+                "x-api-key": self.token,
+                "accept": "application/json",
+                "content-type": "application/json",
+            }           
+    
+        response = requests.post(url, 
+            headers=headers,
+            json=content,
+            timeout=None)
+
+        return response 
+
+    def load_resources(self, study_id, resources):
+        """
+        Loads the contents of resources into dewrangle for the given study_id
+
+        resources should be a flat list of FHIR resources as python dicts such as you
+        might get from loading from a json. Please note that Whistle may dump resources
+        into an object containing multiple arrays. This should be flattened into a single
+        array, or each chunk loaded separately. 
+        """
+
+        if len(resources) > 0:
+            print(f"- Loading {len(resources)} resources for study, {study_id}.")
+
+            resp = self.rest_post(
+                f"https://dewrangle.com/api/rest/studies/{study_id}/files/resources.json",
+                content=resources
+            )
+
+            # The README shows oid  is returned, the global descriptor has been using id. These 
+            # may actually be different, but it could be a case of outdated readme. 
+            resp = resp.json()
+            oid = resp['oid']
+
+            gql_input = {
+                "studyId": study_id,
+                "studyFileIds": [oid],
+                "ingestGlobalIdentifiers": True
+            }
+
+            response = self.client().execute(self.fhir_ingest_mutation, variable_values=gql_input)
+
+            if response['fhirResourceIngest'].get("errors") is not None:
+                print(response['fhirResourceIngest'].get("errors"))
+                print("There was an issue with the mutation's execution")
+                pdb.set_trace()
+
+    def mutate(self, mutation, input_values, mutation_name, status_query):
+        response = self.client().execute(mutation, variable_values=input_values)
+
+        if response[mutation_name].get("errors") is not None:
+            print(response[mutation_name].get("errors"))
+            pdb.set_trace()
+
+        if "job" in response[mutation_name] and response[mutation_name]["job"] is not None:
+            job_output = response[mutation_name]["job"]
+            job_id = job_output['id']
+        else:
+            print(response)
+            pdb.set_trace()
+
+        # With the job ID, we will now query JobGlobalDescriptorUpsert to determine:
+        # 1) is the job done?
+        # 2) Where there any errors?
+
+
+        # We'll try this for a while before giving up
+        tries = JOB_POLLING_COUNT
+        total_time_slept = 0
+        while tries > 0:
+            tries -= 1
+            response = self.client().execute(status_query, variable_values={"id": job_id})
+
+            if response['node']['completedAt'] is None:
+                delay = (JOB_POLLING_COUNT-tries) * (JOB_POLLING_COUNT-tries)
+                print(f"- Job: {job_id} not completed. Waiting {delay}s before trying again. {total_time_slept}s previously waited. ")     
+
+                total_time_slept += delay
+                time.sleep(delay)               
+                
+            else:
+                print(response)
+                response_content = response['node']
+                if "errorAggregation" in response_content and \
+                        response_content['errorAggregation'] is not None and \
+                        response_content['errorAggregation']['totalErrorCount'] > 0:
+                    print(f"{response_content['errorAggregation']['totalErrorCount']} error(s) found: ")
+                    for node in response_content['errors']['edges']:
+                        print(f"- [bold]{node['node']['name']}[/bold] - [red]{node['node']['message']}[/red]")
+                    
+                    sys.exit(1)
+                print(f"Job {job_id} completed. ")
+                tries = 0
+
+        return job_id, response
+
+    def ingest_fhir_resources(self, study_id, resources):
+        """Ingest FHIR Resources into a given Study, study_id
+
+        resources must be a flattened array of FHIR resources
+        """
+        if len(resources) > 0:
+
+            Path("output").mkdir(parents=True, exist_ok=True)
+            with open("output/fhir_resources_to_be_sent.json", 'wt', encoding='utf-8') as f:
+                json.dump(resources, f, ensure_ascii=False, indent=2)
+        
+            logger.info(f"- Loading {len(resources)} FHIR resources into dewrangle. ")
+            
+            resp = self.rest_post(
+                f"https://dewrangle.com/api/rest/studies/{study_id}/files/resources.json",
+                content=resources
+            )
+            # This shows oid for what is returned in the DW docs in GH, not "id". I'm not sure if this 
+            # is wrong or both oid and id are fine. Based on the example, you will probably need to 
+            # use oid for the input going into the next step, if "id" is no longer returned. 
+            fileid = resp.json()["id"]
+
+            variables = {"input": {"studyId": study_id, 
+                        "studyFileIds": [{ "id": fileid}], 
+                        "globalIdentifierMode": 'INGEST'}}
+
+            job_id, response = self.mutate(self.fhir_ingest_mutation, 
+                input_values=variables, 
+                mutation_name="fhirResourceIngest", 
+                status_query=self.query_jobstatus_fhiringest)
+
+            print("resourceType\tCount")
+            for resource_counts in response['node']['fhirResourceAggregation']:
+                print(f"{resource_counts['resourceType']}\t{resource_counts['count']}")
     
     def update_descriptors(self, study_id, descriptors):
         """
@@ -195,66 +352,32 @@ class Dewrangler:
             with open("output/job_descriptors.json", 'wt', encoding='utf-8') as f:
                 json.dump(descriptors, f, ensure_ascii=False, indent=2)
 
-            headers = {
-                "x-api-key": self.token,
-                "accept": "application/json",
-                "content-type": "application/json",
-            }
             print(f"- Minting {len(descriptors)} ids with dewrangle.")
             # pdb.set_trace()
-            resp = requests.post(
+            resp = self.rest_post(
                 f"https://dewrangle.com/api/rest/studies/{study_id}/files/descriptors.json",
-                headers=headers,
-                json=descriptors,
-                timeout=None,
+                content=descriptors
             )
+
+            # This shows oid for what is returned in the DW docs in GH, not "id". I'm not sure if this 
+            # is wrong or both oid and id are fine. Based on the example, you will probably need to 
+            # use oid for the input going into the next step, if "id" is no longer returned. 
             fileid = resp.json()["id"]
 
             variables = {"input": {"studyId": study_id, 
                         "studyFileIds": [{ "id": fileid}], "skipUnavailableDescriptors": True}}
-            response = self.client().execute(self.descriptor_upsert, variable_values=variables)
 
-            if response["globalDescriptorUpsert"].get("errors") is not None:
-                print(response["globalDescriptorUpsert"].get("errors"))
-                pdb.set_trace()
-
-
-            if "job" in response["globalDescriptorUpsert"] and response["globalDescriptorUpsert"]["job"] is not None:
-                job_output = response["globalDescriptorUpsert"]["job"]
-                job_id = job_output['id']
-
-            # With the job ID, we will now query JobGlobalDescriptorUpsert to determine:
-            # 1) is the job done?
-            # 2) Where there any errors?
-
-
-            # We'll try this for a while before giving up
-            tries = JOB_POLLING_COUNT
-            total_time_slept = 0
-            while tries > 0:
-                tries -= 1
-                response = self.client().execute(self.query_jobdescriptorupsert, variable_values={"id": job_id})
-
-                if response['node']['completedAt'] is None:
-                    delay = (JOB_POLLING_COUNT-tries) * (JOB_POLLING_COUNT-tries)
-                    print(f"- Job: {study_id}:{job_id} not completed. Waiting {delay}s before trying again. {total_time_slept}s previously waited. ")     
-
-                    total_time_slept += delay
-                    time.sleep(delay)               
-                    
-                else:
-                    tries = 0
-
-                    response_content = response['node']
-                    if response_content['errorAggregation'] is not None and response_content['errorAggregation']['totalErrorCount'] > 0:
-                        print(f"{response_content['errorAggregation']['totalErrorCount']} error(s) found: ")
-                        for node in response_content['errors']['edges']:
-                            print(f"- [bold]{node['node']['name']}[/bold] - [red]{node['node']['message']}[/red]")
-                        
-                        sys.exit(1)
-                    print(f"Job {job_id} completed. ")
-
-            resp = requests.get(f"https://dewrangle.com/api/rest/studies/{study_id}/global-descriptors?job={job_id}", headers=headers, timeout=None)
+            job_id, response = self.mutate(self.descriptor_upsert, 
+                input_values=variables, 
+                mutation_name="globalDescriptorUpsert", 
+                status_query=self.query_jobdescriptorupsert)
+            resp = requests.get(f"https://dewrangle.com/api/rest/studies/{study_id}/global-descriptors?job={job_id}", 
+                headers = {
+                    "x-api-key": self.token,
+                    "accept": "application/json",
+                    "content-type": "application/json",
+                }, 
+                timeout=None)
 
             local_ids = {}
             if not resp:
