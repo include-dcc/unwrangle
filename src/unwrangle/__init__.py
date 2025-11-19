@@ -88,7 +88,7 @@ def exec(args=None):
         "--log-level", 
         choices=["NOTSET", "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
         default="WARNING",
-        help="Logging level tolerated (default is INFO)"
+        help="Logging level tolerated (default is WARNING)"
     )
 
     subparsers = parser.add_subparsers(
