@@ -87,7 +87,7 @@ def exec(args=None):
         "-log",
         "--log-level", 
         choices=["NOTSET", "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
-        default="INFO",
+        default="WARNING",
         help="Logging level tolerated (default is INFO)"
     )
 
