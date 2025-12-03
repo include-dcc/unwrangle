@@ -10,42 +10,12 @@ query ($first: Int, $after: ID) {
             description
             email
             website
-            fhirServers {
-              edges {
-                node {
-                  id
-                  name
-                }
-              }
-            }
             studies(first: $first, after: $after) {
               edges {
                 node {
                   id
                   globalId
                   name
-                  studyFhirServers {
-                    edges {
-                      node {
-                        id
-                        ... on StudyFhirServer {
-                          fhirServer {
-                            id
-                            name
-                            url
-                            type
-                            authType
-                            authConfig {
-                              ... on FhirServerAuthConfigOIDCClientCredential {
-                                issuerBaseUrl
-                                clientId
-                              }
-                            }
-                          }
-                        }
-                      }
-                    }
-                  }
                 }
               }
             }
