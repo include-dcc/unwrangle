@@ -16,28 +16,6 @@ query orgStudies($id: ID!, $first: Int, $after: ID) {
             id
             globalId
             name
-            studyFhirServers {
-              edges {
-                node {
-                  id
-                  ... on StudyFhirServer {
-                    fhirServer {
-                      id
-                      name
-                      url
-                      type
-                      authType
-                      authConfig {
-                        ... on FhirServerAuthConfigOIDCClientCredential {
-                          issuerBaseUrl
-                          clientId
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
           }
         }
       }
